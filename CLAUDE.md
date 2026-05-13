@@ -197,3 +197,7 @@ Files still to implement, in dependency order:
 - Match the patterns of already-implemented files (`errors.ts`, `config.ts`).
 - Ask the user before introducing a new dependency, a new exported function,
   or a new subpath in `package.json` exports.
+
+## First draft implementation
+
+ - Verify /Users/zerorandy/Desarrollo/conquify/conquify-social to see if there is existing code with good behavior. This was the project where the idea of creating a library like Vaulter started, so you will see a real or the first 'draft Vaulter library' running in a real-life project.
