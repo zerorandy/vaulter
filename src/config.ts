@@ -1,6 +1,19 @@
 import { VaulterConfigError } from "./errors.js";
 
 /**
+ * Función que construye la URL final del proxy a partir de una base y una key.
+ *
+ * - `base`: valor de `proxyUrl` si está definido, o `publicPath` en caso contrario.
+ * - `key`: path del objeto en el bucket (ej. `"bitacora/abc123/foto.jpg"`).
+ *
+ * @example
+ * // Builder con token de autenticación para un Cloudflare Worker
+ * const myBuilder: UrlBuilder = (base, key) =>
+ *   `${base}/${key}?token=${generateToken(key)}`;
+ */
+export type UrlBuilder = (base: string, key: string) => string;
+
+/**
  * Configuración de Vaulter. Apunta a un bucket S3-compatible
  * (Backblaze B2, Cloudflare R2, AWS S3, MinIO, Wasabi, etc).
  */
@@ -37,11 +50,35 @@ export interface VaulterConfig {
   forcePathStyle?: boolean;
 
   /**
-   * Prefijo de URL que el proxy expone al navegador.
-   * `toMediaUrl(key)` devuelve `${publicPath}/${key}`.
+   * Prefijo de URL que el proxy expone al navegador. Es la ruta donde el
+   * usuario monta `createMediaHandler` en su app.
+   * `toMediaUrl(key)` usa este valor como base cuando `proxyUrl` no está definido.
    * @default "/media"
    */
   publicPath?: string;
+
+  /**
+   * URL base de un proxy externo (Cloudflare Worker, CDN, etc.).
+   * Cuando está definido, `toMediaUrl(key)` lo usa como base en lugar de
+   * `publicPath`, y el resultado será una URL absoluta.
+   *
+   * @example "https://media.my-worker.workers.dev"
+   */
+  proxyUrl?: string;
+
+  /**
+   * Función personalizada para construir la URL final de cada key.
+   * Si no se especifica, se usa el builder por defecto: `${base}/${key}`.
+   *
+   * Recibe la base (`proxyUrl` o `publicPath`) y la key del objeto.
+   * Útil para añadir tokens, prefijos de CDN u otras transformaciones.
+   *
+   * @example
+   * import { urlBuilders } from 'vaulter'
+   * // Extender el builder simple con un token
+   * urlBuilder: (base, key) => `${base}/${key}?token=${sign(key)}`
+   */
+  urlBuilder?: UrlBuilder;
 }
 
 /**
@@ -58,6 +95,8 @@ export interface ResolvedConfig {
   region: string;
   forcePathStyle: boolean;
   publicPath: string;
+  proxyUrl: string | undefined;
+  urlBuilder: UrlBuilder | undefined;
 }
 
 /**
@@ -149,6 +188,10 @@ function applyDefaults(config: VaulterConfig): ResolvedConfig {
     region: config.region ?? "auto",
     forcePathStyle: config.forcePathStyle ?? true,
     publicPath: normalizePublicPath(config.publicPath ?? "/media"),
+    proxyUrl: config.proxyUrl
+      ? normalizeProxyUrl(config.proxyUrl)
+      : undefined,
+    urlBuilder: config.urlBuilder,
   };
 }
 
@@ -177,6 +220,15 @@ function validateConfig(config: VaulterConfig): void {
  */
 function normalizeEndpoint(endpoint: string): string {
   return endpoint.startsWith("http") ? endpoint : `https://${endpoint}`;
+}
+
+/**
+ * Elimina el trailing slash de una URL externa de proxy.
+ *   "https://media.worker.dev/"  → "https://media.worker.dev"
+ *   "https://media.worker.dev"   → "https://media.worker.dev"
+ */
+function normalizeProxyUrl(url: string): string {
+  return url.endsWith("/") ? url.slice(0, -1) : url;
 }
 
 /**

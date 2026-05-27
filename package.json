@@ -1,10 +1,14 @@
 {
-  "name": "vaulter",
+  "name": "@zerorandy/vaulter",
   "version": "0.1.0",
   "description": "Server-side file storage library for S3-compatible providers (Backblaze B2, Cloudflare R2, MinIO, AWS S3) with private bucket + proxy pattern.",
   "type": "module",
   "license": "MIT",
-  "author": "",
+  "author": "zerorandy <renereyperez@gmail.com> (https://github.com/zerorandy)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zerorandy/vaulter"
+  },
   "keywords": [
     "storage",
     "s3",
@@ -43,6 +47,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "engines": {

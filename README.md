@@ -1,191 +1,241 @@
-# Vaulter
+# @zerorandy/vaulter
 
 Server-side file storage library for S3-compatible providers with a private-bucket + proxy pattern. Framework-agnostic, ESM-only, TypeScript-first.
 
-> **Status:** early development (0.x). API may change before 1.0.
-
 ## What it does
 
-Vaulter wraps any S3-compatible storage (Backblaze B2, Cloudflare R2, AWS S3, MinIO, Wasabi) behind a server-side proxy. The bucket stays fully private — clients never talk to S3 directly. Your database stores object keys, not URLs, so you can switch providers without data migration.
-
-## Why
-
-Most file upload libraries either expose the bucket to the public internet, require complex presigned-URL flows, or couple you to a specific framework. Vaulter takes a different approach:
+Vaulter wraps any S3-compatible storage (Backblaze B2, Cloudflare R2, AWS S3, MinIO, Wasabi) behind a server-side proxy. The bucket stays fully private — clients never talk to S3 directly. Your database stores object keys, not URLs, so switching providers requires no data migration.
 
 - **Bucket stays private.** Nothing in the bucket is reachable from the public internet.
 - **Server is the single point of access.** All reads go through a proxy you control, where you enforce your own auth.
-- **Database stores keys, not URLs.** Switch from B2 to R2 without touching your data.
-- **Framework-agnostic.** Works in SvelteKit, Next.js App Router, Hono, Bun, Cloudflare Workers, Express, or anything that speaks Web standard `Request`/`Response`.
+- **Database stores keys, not URLs.** Migrate providers without touching your data.
+- **Framework-agnostic.** Works in SvelteKit, Next.js App Router, Astro, Hono, Bun, Express, or anything that speaks Web standard `Request`/`Response`.
 - **Just functions.** No classes, no clients to instantiate. `upload(file, folder)` and done.
+- **Intercambiable proxy.** Use the built-in proxy or point to a Cloudflare Worker for zero-egress-cost delivery with Backblaze B2.
 
 ## Installation
 
 ```bash
-npm install vaulter
-# or
-pnpm add vaulter
+# From npm (once published)
+npm install @zerorandy/vaulter
+pnpm add @zerorandy/vaulter
+
+# From GitHub (current)
+pnpm add github:zerorandy/vaulter#v0.1.0
+npm install github:zerorandy/vaulter#v0.1.0
 ```
 
-Requires Node.js 18+ (or any modern runtime with `fetch`, Web Streams, and `crypto.randomUUID`).
+Requires Node.js 18+ (or any modern runtime with Web Streams and `crypto.randomUUID`).
 
 ## Quick start
 
-### 1. Create your config
+### 1. Initialize once at startup
 
 ```ts
-// vaulter.config.ts
-import { defineConfig } from 'vaulter';
+// server entry point, hooks.server.ts, middleware.ts, etc.
+import { init } from '@zerorandy/vaulter'
 
-export default defineConfig({
+init({
   endpoint: process.env.B2_ENDPOINT!,
   bucket: process.env.B2_BUCKET_NAME!,
   credentials: {
     accessKeyId: process.env.B2_KEY_ID!,
     secretAccessKey: process.env.B2_APPLICATION_KEY!,
   },
-});
+})
 ```
 
-### 2. Initialize once at startup
+### 2. Upload files
 
 ```ts
-// app entry point (server.ts, hooks.server.ts, etc.)
-import { init } from 'vaulter';
-import config from './vaulter.config';
+import { upload, uploadMany } from '@zerorandy/vaulter'
 
-init(config);
+// Single file — returns the key, store this in your database
+const key = await upload(file, `avatars/${userId}`)
+// → "avatars/abc123/1748123456789-uuid.jpg"
+
+// Multiple files in parallel
+const keys = await uploadMany(files, `gallery/${userId}`)
 ```
 
-### 3. Use it
+### 3. Convert keys to URLs
 
 ```ts
-import { upload, remove, toMediaUrl } from 'vaulter';
+import { toMediaUrl } from '@zerorandy/vaulter'
 
-// Upload — returns a key, store this in your database
-const key = await upload(file, `bitacora/${userId}`);
-// → "bitacora/abc123/1748123456789-uuid.jpg"
+const url = toMediaUrl(key)
+// → "/media/avatars/abc123/1748123456789-uuid.jpg"
 
-// Convert key to URL for your <img> tag
-const url = toMediaUrl(key);
-// → "/media/bitacora/abc123/1748123456789-uuid.jpg"
-
-// Delete when no longer needed
-await remove(key);
+// Null-safe: toMediaUrl(null) → null
 ```
 
 ### 4. Mount the media proxy
 
 ```ts
 // SvelteKit: src/routes/media/[...path]/+server.ts
-import { createMediaHandler } from 'vaulter/handler';
+import { createMediaHandler } from '@zerorandy/vaulter/handler'
 
 export const GET = createMediaHandler({
   authorize: async (request) => {
-    const session = await getSession(request);
-    return session ? { ok: true } : { ok: false, status: 401 };
+    const session = await getSession(request)
+    return { ok: !!session, status: session ? 200 : 401 }
   },
-});
+})
 ```
 
-The handler returns a Web standard `Request → Response` function. It works the same in Next.js App Router, Hono, Bun, and Cloudflare Workers — see `examples/` for each.
+The handler returns a Web-standard `(Request) => Promise<Response>` function — the same code works in Next.js App Router, Astro, Hono, Bun, and Cloudflare Workers.
 
-## API
+---
 
-### `vaulter` (core)
+## External proxy (Cloudflare Worker + Backblaze B2)
 
-| Export | Purpose |
-|--------|---------|
-| `defineConfig(config)` | Identity helper for typed config files |
-| `init(config)` | Register a global config singleton |
-| `upload(file, folder, opts?)` | Upload one file, returns its key |
-| `uploadMany(files, folder, opts?)` | Upload many files in parallel |
-| `remove(key, opts?)` | Delete a file from the bucket |
-| `download(key, range?, opts?)` | Fetch a file (with optional Range header) |
-| `toMediaUrl(key)` | Convert a key to a proxy URL |
+Backblaze B2 and Cloudflare have a bandwidth alliance — traffic from B2 to Cloudflare is free. If you move the proxy to a Cloudflare Worker, your egress costs drop to zero.
+
+With Vaulter you don't need to rewrite your app. Just add `proxyUrl` to your config:
+
+```ts
+init({
+  endpoint: process.env.B2_ENDPOINT!,
+  bucket: process.env.B2_BUCKET_NAME!,
+  credentials: { ... },
+  proxyUrl: 'https://media.my-worker.workers.dev',
+})
+```
+
+Now `toMediaUrl(key)` returns `https://media.my-worker.workers.dev/key` automatically. Your Worker handles the S3 fetch — Vaulter handles everything else (upload, delete, queue).
+
+For custom URL schemes (tokens, CDN prefixes), use `urlBuilder`:
+
+```ts
+import { urlBuilders, type UrlBuilder } from '@zerorandy/vaulter'
+
+// Your own builders file
+export const myBuilders = {
+  ...urlBuilders,
+  withToken: (base: string, key: string): string =>
+    `${base}/${key}?token=${generateToken(key)}`,
+}
+
+// In init():
+init({
+  ...,
+  proxyUrl: 'https://media.my-worker.workers.dev',
+  urlBuilder: myBuilders.withToken,
+})
+```
+
+---
+
+## Resilient file deletion (cleanup queue)
+
+S3 deletes can fail (network timeout, rate limit). Vaulter includes an adapter-based cleanup queue so no file is ever permanently orphaned.
+
+```ts
+import { createCleanupQueue, createCleanupRunner } from '@zerorandy/vaulter/queue'
+import { prismaAdapter } from './prisma-adapter.js'
+
+export const cleanupQueue = createCleanupQueue({
+  adapter: prismaAdapter,
+  maxAttempts: 5,
+})
+
+// When a user deletes a post:
+await cleanupQueue.enqueue(post.imageKey)  // register BEFORE deleting from DB
+await db.post.delete({ where: { id: post.id } })
+
+// In a cron job endpoint:
+export const runCleanup = createCleanupRunner(cleanupQueue)
+await runCleanup()
+```
+
+The queue is adapter-based — Vaulter has no opinion about your database. Implement the 4-method `QueueAdapter` interface for your ORM. See `examples/prisma-adapter.ts` for a complete Prisma implementation.
+
+---
+
+## API reference
+
+### `@zerorandy/vaulter` (core)
+
+| Export | Signature | Purpose |
+|--------|-----------|---------|
+| `init` | `(config) => void` | Register global config singleton |
+| `defineConfig` | `(config) => config` | Identity helper for typed config files |
+| `upload` | `(file, folder, opts?) => Promise<string>` | Upload one file, returns its key |
+| `uploadMany` | `(files, folder, opts?) => Promise<string[]>` | Upload many files in parallel |
+| `remove` | `(key, opts?) => Promise<void>` | Delete a file from the bucket |
+| `download` | `(key, range?, opts?) => Promise<GetObjectCommandOutput>` | Fetch raw S3 object (with optional Range) |
+| `toMediaUrl` | `(key) => string \| null` | Convert a key to its proxy URL |
+| `urlBuilders` | `{ simple }` | Built-in URL builder catalog |
+| `UrlBuilder` | type | `(base: string, key: string) => string` |
 
 All operation functions accept an optional `opts.config` to override the singleton — useful for testing and multi-tenant setups.
 
-### `vaulter/handler`
+### `@zerorandy/vaulter/handler`
+
+| Export | Signature | Purpose |
+|--------|-----------|---------|
+| `createMediaHandler` | `({ authorize, config? }) => Handler` | Build a proxy handler for serving private files |
+
+### `@zerorandy/vaulter/queue`
 
 | Export | Purpose |
 |--------|---------|
-| `createMediaHandler({ authorize })` | Build a Web standard request handler for serving files |
-
-### `vaulter/queue`
-
-The cleanup queue is adapter-based — Vaulter has no opinion about your database. You provide an implementation of `QueueAdapter` (4 methods); Vaulter handles the rest.
-
-| Export | Purpose |
-|--------|---------|
-| `createCleanupQueue({ adapter, maxAttempts })` | Build the queue interface |
-| `createCleanupRunner(queue)` | Build a runner for scheduled cleanup |
+| `createCleanupQueue({ adapter, maxAttempts? })` | Build the enqueue interface |
+| `createCleanupRunner(queue)` | Build a `() => Promise<void>` runner for cron jobs |
 | `QueueAdapter` | Interface to implement for your database |
 | `QueueItem` | Type returned by `adapter.pending()` |
 
-See `examples/prisma-adapter.ts` for a reference implementation.
+### `@zerorandy/vaulter/errors`
 
-### `vaulter/errors`
+All errors extend `VaulterError` — a single `instanceof VaulterError` catches anything from the library.
 
-All errors thrown by Vaulter extend `VaulterError`, so a single `instanceof VaulterError` catches anything from the library.
-
-| Export | Use |
-|--------|-----|
+| Class | When it's thrown |
+|-------|-----------------|
 | `VaulterError` | Base class |
-| `VaulterConfigError` | Missing or invalid config |
-| `VaulterUploadError` | Upload to S3 failed |
-| `VaulterDeleteError` | Delete on S3 failed |
-| `VaulterDownloadError` | Download from S3 failed (includes HTTP `status`) |
+| `VaulterConfigError` | `init()` not called and no per-call config |
+| `VaulterUploadError` | S3 `PutObject` failed |
+| `VaulterDeleteError` | S3 `DeleteObject` failed |
+| `VaulterDownloadError` | S3 `GetObject` failed (has `.status` and `.key`) |
+
+---
 
 ## Configuration reference
 
 ```ts
-defineConfig({
+init({
   // Required
-  endpoint: 's3.us-east-005.backblazeb2.com',   // with or without https://
-  bucket: 'my-bucket',                          // must be Private
+  endpoint: 's3.us-east-005.backblazeb2.com',  // with or without https://
+  bucket: 'my-private-bucket',
   credentials: {
-    accessKeyId: '...',
-    secretAccessKey: '...',
+    accessKeyId: 'your-key-id',
+    secretAccessKey: 'your-secret-key',
   },
 
   // Optional
-  region: 'auto',           // default 'auto' — B2 ignores it; S3 needs it
-  forcePathStyle: true,     // default true — required for B2 and MinIO
-  publicPath: '/media',     // default '/media' — prefix returned by toMediaUrl
-});
+  region: 'auto',          // default 'auto' — B2 ignores it; AWS S3 needs it
+  forcePathStyle: true,    // default true  — required for B2, MinIO, R2
+  publicPath: '/media',    // default '/media' — mount path for createMediaHandler
+
+  // External proxy (optional)
+  proxyUrl: 'https://media.my-worker.workers.dev',  // overrides publicPath in toMediaUrl
+  urlBuilder: myBuilders.withToken,                  // custom URL construction
+})
 ```
 
 ## Provider notes
 
-| Provider | Endpoint format | `forcePathStyle` |
-|----------|----------------|------------------|
-| Backblaze B2 | `s3.us-east-005.backblazeb2.com` | `true` (required) |
-| Cloudflare R2 | `<account_id>.r2.cloudflarestorage.com` | `true` |
-| AWS S3 | `s3.<region>.amazonaws.com` | `false` (optional) |
-| MinIO | `<your-host>:9000` | `true` (required) |
-| Wasabi | `s3.<region>.wasabisys.com` | `true` |
+| Provider | Endpoint format | `forcePathStyle` | Notes |
+|----------|----------------|------------------|-------|
+| Backblaze B2 | `s3.us-east-005.backblazeb2.com` | `true` | Free egress to Cloudflare |
+| Cloudflare R2 | `<account_id>.r2.cloudflarestorage.com` | `true` | |
+| AWS S3 | `s3.<region>.amazonaws.com` | `false` | Set `region` explicitly |
+| MinIO | `<your-host>:9000` | `true` | |
+| Wasabi | `s3.<region>.wasabisys.com` | `true` | |
 
-The defaults (`region: 'auto'`, `forcePathStyle: true`) work out of the box for B2, R2, MinIO, and Wasabi. AWS S3 users should set `region` explicitly.
+The defaults (`region: 'auto'`, `forcePathStyle: true`) work out of the box for B2, R2, MinIO, and Wasabi.
 
-## Design principles
-
-1. **Private bucket only.** Vaulter assumes your bucket has no public access. If your bucket is public, Vaulter still works, but you're not getting the security benefit.
-2. **Keys in the database, not URLs.** Store what Vaulter returns from `upload()`. Never store the full S3 URL.
-3. **All reads through the proxy.** The browser never sees S3. Your server reads from S3 and streams to the browser.
-4. **The library is silent.** No `console.log`, no telemetry, no auto-retries. If something fails, you get a typed error to handle.
-
-See [`docs/origin-architecture.md`](./docs/origin-architecture.md) for the original design that inspired Vaulter, including security layering, the cleanup queue pattern, and detailed reasoning behind these decisions.
-
-## Status & roadmap
-
-- [x] Core API design
-- [ ] `src/client.ts`, `src/storage.ts`
-- [ ] `src/handler.ts` with Range request support
-- [ ] `src/queue.ts` with adapter pattern
-- [ ] Reference adapter for Prisma
-- [ ] Framework example handlers
-- [ ] First publish to npm
+---
 
 ## License
 
-MIT
+MIT — see [LICENSE](./LICENSE)

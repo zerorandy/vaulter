@@ -9,7 +9,8 @@ Estado actual de Vaulter
   - src/errors.ts — 5 clases: VaulterError, VaulterConfigError, VaulterUploadError, VaulterDeleteError,
   VaulterDownloadError.
   - src/config.ts — defineConfig, init, resolveConfig, _resetConfig, con singleton, defaults y normalización de
-  endpoint/publicPath.
+  endpoint/publicPath. ADICIÓN APROBADA: VaulterConfig y ResolvedConfig incluyen dos campos nuevos:
+  proxyUrl?: string y urlBuilder?: UrlBuilder (sin defaults, se pasan tal cual en applyDefaults).
   
   Todavía por implementar (en orden de dependencia):
 
@@ -18,7 +19,7 @@ Estado actual de Vaulter
   ├─────┼────────────────────────────┼────────────────────────────────────────────────────────────────────┤
   │ 1   │ src/client.ts              │ Fábrica interna de S3Client (nunca exportado)                      │
   ├─────┼────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ 2   │ src/storage.ts             │ upload, uploadMany, remove, download, toMediaUrl                   │
+  │ 2   │ src/storage.ts             │ upload, uploadMany, remove, download, toMediaUrl, urlBuilders      │
   ├─────┼────────────────────────────┼────────────────────────────────────────────────────────────────────┤
   │ 3   │ src/handler.ts             │ createMediaHandler({ authorize }) → (Request) => Promise<Response> │
   ├─────┼────────────────────────────┼────────────────────────────────────────────────────────────────────┤
@@ -28,7 +29,7 @@ Estado actual de Vaulter
   ├─────┼────────────────────────────┼────────────────────────────────────────────────────────────────────┤
   │ 6   │ examples/prisma-adapter.ts │ Implementación de referencia del QueueAdapter                      │
   ├─────┼────────────────────────────┼────────────────────────────────────────────────────────────────────┤
-  │ 7   │ examples/*.ts              │ Handlers para SvelteKit, Next.js, Express                          │
+  │ 7   │ examples/*.ts              │ Handlers para SvelteKit, Next.js, Astro, Express                   │
   ├─────┼────────────────────────────┼────────────────────────────────────────────────────────────────────┤
   │ 8   │ README.md                  │ Documentación pública                                              │
   └─────┴────────────────────────────┴────────────────────────────────────────────────────────────────────┘

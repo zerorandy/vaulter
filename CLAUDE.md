@@ -58,6 +58,8 @@ uploadMany(files, folder, opts?) // returns key[]
 remove(key, opts?)
 download(key, range?, opts?)    // returns S3 GetObjectCommandOutput
 toMediaUrl(key)                 // returns string | null
+UrlBuilder                      // type: (proxyUrl: string, key: string) => string
+urlBuilders                     // built-in catalog: { simple }
 
 // Handler (from 'vaulter/handler')
 createMediaHandler({ authorize })  // returns (request: Request) => Promise<Response>
@@ -108,6 +110,7 @@ vaulter/
 ├── prisma-adapter.ts        # reference QueueAdapter implementation
 ├── sveltekit-handler.ts
 ├── nextjs-handler.ts
+├── astro-handler.ts
 └── express-handler.ts
 
 **`src/` is flat by design.** For a library of ~7 files, nested folders add
@@ -133,7 +136,9 @@ without explicit user request.
 | Config strategy | Singleton + per-call override | Easy default, flexible when needed |
 | Public API language | English function names | npm convention |
 | `fetch` naming | Renamed to `download` | Avoids shadowing global fetch |
-| `publicPath` | Configurable, defaults `/media` | Original was hardcoded |
+| `publicPath` | Configurable, defaults `/media` | Mount path for the internal proxy handler |
+| `proxyUrl` in config | Optional `string`; if set, `toMediaUrl` uses it as base instead of `publicPath` | Enables external proxies (CF Worker, CDN) without changing app code |
+| `urlBuilder` in config | Optional `UrlBuilder` fn; defaults to simple concat | Allows custom URL schemes (tokens, CDN prefixes, etc.) when `proxyUrl` alone isn't enough |
 | `authorize` return | `{ ok: boolean, status?: number }` | Distinguishes 401 vs 403 |
 | QueueAdapter methods | 4: insert, pending, remove, markAttempt | Minimal but complete |
 | S3 client config | `forcePathStyle: true`, `region: 'auto'` defaults | Required for B2, harmless elsewhere |
@@ -141,11 +146,78 @@ without explicit user request.
 
 ---
 
+## Proxy URL strategy
+
+`toMediaUrl(key)` is the single point that converts a bucket key into a URL
+the browser can request. Its behavior depends on two optional config fields:
+
+- `proxyUrl` — the **where**: full base URL of an external proxy
+  (e.g. `"https://media.my-worker.workers.dev"`).
+- `urlBuilder` — the **how**: a function `(base, key) => string` that
+  constructs the final URL from the base and the key.
+
+Resolution order inside `toMediaUrl`:
+
+```
+1. Determine base:  config.proxyUrl ?? config.publicPath
+2. Build URL:       config.urlBuilder?.(base, key) ?? `${base}/${key}`
+3. Legacy passthrough: if key starts with "http", return key unchanged
+```
+
+`publicPath` stays relevant even when `proxyUrl` is set — it is the path where
+`createMediaHandler` is mounted in the user's app. The two fields are
+independent: `publicPath` = server route, `proxyUrl` = client-facing URL.
+
+### Built-in catalog (`urlBuilders`)
+
+Vaulter exports a `urlBuilders` object with ready-to-use strategies:
+
+```ts
+import { urlBuilders } from 'vaulter'
+
+urlBuilders.simple   // (base, key) => `${base}/${key}`  — the default
+```
+
+Users extend the catalog **in their own project** — never by mutating the
+exported object from vaulter:
+
+```ts
+// src/media-builders.ts  (user's file)
+import { urlBuilders, type UrlBuilder } from 'vaulter'
+
+export const myBuilders = {
+  ...urlBuilders,
+  cloudflareAuth: (base: string, key: string): string =>
+    `${base}/${key}?token=${sign(key)}`,
+}
+
+// src/server.ts
+import { init } from 'vaulter'
+import { myBuilders } from './media-builders.js'
+
+init({
+  endpoint, bucket, credentials,
+  proxyUrl: 'https://media.my-worker.workers.dev',
+  urlBuilder: myBuilders.cloudflareAuth,
+})
+```
+
+---
+
 ## Finalized code (do not regenerate without permission)
 
-`package.json`, `tsconfig.json`, `src/errors.ts`, and `src/config.ts` are
-fully designed and approved. Their exact contents are in the planning
-conversation. Implement them verbatim.
+`package.json`, `tsconfig.json`, and `src/errors.ts` are fully designed and
+approved. Implement them verbatim.
+
+`src/config.ts` is approved **with the following additions** — include them
+when implementing:
+- `VaulterConfig` gets two new optional fields: `proxyUrl?: string` and
+  `urlBuilder?: UrlBuilder`.
+- `ResolvedConfig` gets the same two fields, but typed as
+  `proxyUrl: string | undefined` and `urlBuilder: UrlBuilder | undefined`
+  (no defaults — `undefined` is the valid "not set" state).
+- `applyDefaults` passes them through without transformation (no normalization
+  needed; `normalizeEndpoint`-style handling is not required here).
 
 Files still to implement, in dependency order:
 1. `src/client.ts`
