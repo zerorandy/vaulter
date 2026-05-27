@@ -57,7 +57,8 @@ export async function upload(
   const s3 = createS3Client(config);
 
   const timestamp = Date.now();
-  const ext = file.name.split(".").pop() ?? "bin";
+  const dotIndex = file.name.lastIndexOf(".");
+  const ext = dotIndex >= 0 ? file.name.slice(dotIndex + 1) : "bin";
   const key = `${folder}/${timestamp}-${crypto.randomUUID()}.${ext}`;
 
   const buffer = await file.arrayBuffer();
