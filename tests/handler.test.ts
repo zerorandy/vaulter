@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { init, _resetConfig } from "../src/config.js";
 import { VaulterDownloadError } from "../src/errors.js";
+// VaulterConfigError se importa solo para verificar el tipo en el test de config faltante
 
 // Mock selectivo: solo download se reemplaza, el resto del módulo permanece real
 const mockDownload = vi.fn();
@@ -137,6 +138,13 @@ describe("respuesta exitosa", () => {
     const res = await handler(makeRequest("/media/foto.jpg"));
     expect(res.headers.get("Content-Type")).toBe("application/octet-stream");
   });
+
+  it("no incluye Content-Length cuando S3 no lo provee", async () => {
+    mockDownload.mockResolvedValue({ Body: new ReadableStream(), ContentType: "image/jpeg" });
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/foto.jpg"));
+    expect(res.headers.get("Content-Length")).toBeNull();
+  });
 });
 
 // ─── Range requests ───────────────────────────────────────────────────────────
@@ -180,6 +188,13 @@ describe("Range requests", () => {
     const [, passedRange] = mockDownload.mock.calls[0] as [string, string];
     expect(passedRange).toBe("bytes=0-65536");
   });
+
+  it("no incluye Content-Range cuando S3 no lo provee", async () => {
+    mockDownload.mockResolvedValue({ Body: new ReadableStream(), ContentType: "video/mp4" });
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/video.mp4", { Range: "bytes=0-" }));
+    expect(res.headers.get("Content-Range")).toBeNull();
+  });
 });
 
 // ─── manejo de errores ────────────────────────────────────────────────────────
@@ -208,5 +223,11 @@ describe("errores", () => {
     const handler = createMediaHandler({ authorize: ALLOW });
     const res = await handler(makeRequest("/media/key.jpg"));
     expect(res.status).toBe(500);
+  });
+
+  it("rechaza con VaulterConfigError si init() no fue llamado y no hay config", async () => {
+    _resetConfig();
+    const handler = createMediaHandler({ authorize: ALLOW });
+    await expect(handler(makeRequest("/media/key.jpg"))).rejects.toThrow();
   });
 });

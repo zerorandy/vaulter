@@ -41,6 +41,18 @@ describe("resolveConfig", () => {
     _resetConfig();
     expect(() => resolveConfig()).toThrowError(VaulterConfigError);
   });
+
+  it("init() llamado dos veces sobrescribe el primero", () => {
+    init(BASE);
+    init({ ...BASE, bucket: "segundo-bucket" });
+    expect(resolveConfig().bucket).toBe("segundo-bucket");
+  });
+
+  it("override en resolveConfig no contamina el singleton", () => {
+    init(BASE);
+    resolveConfig({ ...BASE, bucket: "override-bucket" });
+    expect(resolveConfig().bucket).toBe("my-bucket");
+  });
 });
 
 // ─── defineConfig ─────────────────────────────────────────────────────────────

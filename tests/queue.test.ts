@@ -66,6 +66,18 @@ describe("createCleanupQueue", () => {
     await queue.enqueue("some/key.jpg");
     expect(adapter.insert).toHaveBeenCalledTimes(1);
   });
+
+  it("múltiples llamadas a enqueue son independientes", async () => {
+    const adapter = makeAdapter();
+    const queue = createCleanupQueue({ adapter });
+    await queue.enqueue("key1.jpg");
+    await queue.enqueue("key2.jpg");
+    await queue.enqueue("key3.jpg");
+    expect(adapter.insert).toHaveBeenCalledTimes(3);
+    expect(adapter.insert).toHaveBeenNthCalledWith(1, "key1.jpg");
+    expect(adapter.insert).toHaveBeenNthCalledWith(2, "key2.jpg");
+    expect(adapter.insert).toHaveBeenNthCalledWith(3, "key3.jpg");
+  });
 });
 
 // ─── createCleanupRunner — guard ──────────────────────────────────────────────
@@ -108,6 +120,23 @@ describe("runner — flujo exitoso", () => {
     await run();
 
     expect(mockRemove).toHaveBeenCalledWith("folder/foto.jpg", undefined);
+  });
+
+  it("el config explícito llega a remove()", async () => {
+    const explicitConfig = { ...BASE, bucket: "otro-bucket" };
+    const item = makeItem({ key: "folder/foto.jpg" });
+    const adapter = makeAdapter({
+      pending: vi.fn().mockResolvedValue([item]),
+    });
+    mockRemove.mockResolvedValue(undefined);
+
+    const queue = createCleanupQueue({ adapter, config: explicitConfig });
+    const run = createCleanupRunner(queue);
+    await run();
+
+    expect(mockRemove).toHaveBeenCalledWith("folder/foto.jpg", {
+      config: explicitConfig,
+    });
   });
 
   it("llama adapter.remove(item.id) tras borrado exitoso", async () => {

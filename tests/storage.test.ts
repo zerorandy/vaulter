@@ -188,6 +188,25 @@ describe("uploadMany", () => {
     expect(keys[0]!.endsWith(".jpg")).toBe(true);
     expect(keys[1]!.endsWith(".png")).toBe(true);
   });
+
+  it("con array vacío devuelve [] sin llamar a S3", async () => {
+    const keys = await uploadMany([], "folder");
+    expect(keys).toEqual([]);
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("rechaza con VaulterUploadError si algún archivo falla", async () => {
+    mockSend
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("S3 error"));
+    const files = [
+      new File(["a"], "a.jpg", { type: "image/jpeg" }),
+      new File(["b"], "b.jpg", { type: "image/jpeg" }),
+    ];
+    await expect(uploadMany(files, "folder")).rejects.toBeInstanceOf(
+      VaulterUploadError,
+    );
+  });
 });
 
 // ─── remove ───────────────────────────────────────────────────────────────────
@@ -268,5 +287,16 @@ describe("download", () => {
     } catch (err) {
       expect((err as VaulterDownloadError).status).toBe(500);
     }
+  });
+
+  it("devuelve el objeto S3 tal cual", async () => {
+    const s3Response = {
+      Body: new ReadableStream(),
+      ContentType: "image/jpeg",
+      ContentLength: 1000,
+    };
+    mockSend.mockResolvedValue(s3Response);
+    const result = await download("foto.jpg");
+    expect(result).toBe(s3Response);
   });
 });
