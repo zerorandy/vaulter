@@ -37,6 +37,21 @@ export const urlBuilders = {
 } satisfies Record<string, UrlBuilder>;
 
 /* ------------------------------------------------------------------ */
+/* Validaciones internas                                               */
+/* ------------------------------------------------------------------ */
+
+const VALID_FOLDER_RE = /^[a-zA-Z0-9_-]+(\/[a-zA-Z0-9_-]+)*$/;
+
+function assertValidFolder(folder: string): void {
+  if (!VALID_FOLDER_RE.test(folder)) {
+    throw new VaulterUploadError(
+      `Invalid folder "${folder}": use only [a-zA-Z0-9_-] segments separated by "/"`,
+      folder,
+    );
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* upload                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -53,6 +68,7 @@ export async function upload(
   folder: string,
   opts?: { config?: VaulterConfig },
 ): Promise<string> {
+  assertValidFolder(folder);
   const config = resolveConfig(opts?.config);
   const s3 = createS3Client(config);
 

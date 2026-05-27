@@ -231,3 +231,122 @@ describe("errores", () => {
     await expect(handler(makeRequest("/media/key.jpg"))).rejects.toThrow();
   });
 });
+
+// ─── onError ──────────────────────────────────────────────────────────────────
+
+describe("onError", () => {
+  it("invoca onError cuando download lanza un error", async () => {
+    const originalErr = new Error("S3 caído");
+    mockDownload.mockRejectedValue(originalErr);
+    const onError = vi.fn();
+    const handler = createMediaHandler({ authorize: ALLOW, onError });
+    await handler(makeRequest("/media/foto.jpg"));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(originalErr, expect.any(Request));
+  });
+
+  it("invoca onError con el Request original", async () => {
+    mockDownload.mockRejectedValue(new Error("fallo"));
+    const onError = vi.fn();
+    const handler = createMediaHandler({ authorize: ALLOW, onError });
+    const req = makeRequest("/media/foto.jpg");
+    await handler(req);
+    const [, passedRequest] = onError.mock.calls[0] as [unknown, Request];
+    expect(passedRequest.url).toBe(req.url);
+  });
+
+  it("sigue devolviendo 500 aunque onError lance una excepción", async () => {
+    mockDownload.mockRejectedValue(new Error("fallo"));
+    const handler = createMediaHandler({
+      authorize: ALLOW,
+      onError: () => { throw new Error("logger caído"); },
+    });
+    const res = await handler(makeRequest("/media/foto.jpg"));
+    expect(res.status).toBe(500);
+  });
+
+  it("no invoca onError cuando authorize deniega", async () => {
+    const onError = vi.fn();
+    const handler = createMediaHandler({ authorize: DENY, onError });
+    await handler(makeRequest("/media/foto.jpg"));
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("no invoca onError en respuestas exitosas", async () => {
+    mockDownload.mockResolvedValue({ Body: new ReadableStream(), ContentType: "image/jpeg" });
+    const onError = vi.fn();
+    const handler = createMediaHandler({ authorize: ALLOW, onError });
+    await handler(makeRequest("/media/foto.jpg"));
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("no invoca onError cuando VaulterDownloadError tiene status 404", async () => {
+    mockDownload.mockRejectedValue(
+      new VaulterDownloadError("Not found", "key.jpg", 404),
+    );
+    const onError = vi.fn();
+    const handler = createMediaHandler({ authorize: ALLOW, onError });
+    await handler(makeRequest("/media/key.jpg"));
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("funciona sin onError (el campo es opcional)", async () => {
+    mockDownload.mockRejectedValue(new Error("fallo"));
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/foto.jpg"));
+    expect(res.status).toBe(500);
+  });
+});
+
+// ─── headers de seguridad ─────────────────────────────────────────────────────
+
+describe("headers de seguridad", () => {
+  it("respuesta 200 incluye X-Content-Type-Options: nosniff", async () => {
+    mockDownload.mockResolvedValue({ Body: new ReadableStream(), ContentType: "image/jpeg" });
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/foto.jpg"));
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+
+  it("respuesta 200 incluye X-Frame-Options: DENY", async () => {
+    mockDownload.mockResolvedValue({ Body: new ReadableStream(), ContentType: "image/jpeg" });
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/foto.jpg"));
+    expect(res.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+
+  it("respuesta 206 (Range) incluye X-Content-Type-Options: nosniff", async () => {
+    mockDownload.mockResolvedValue({ Body: new ReadableStream(), ContentType: "video/mp4" });
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/video.mp4", { Range: "bytes=0-" }));
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+
+  it("respuesta 401 incluye X-Content-Type-Options: nosniff", async () => {
+    const handler = createMediaHandler({ authorize: DENY });
+    const res = await handler(makeRequest("/media/foto.jpg"));
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+
+  it("respuesta 401 incluye X-Frame-Options: DENY", async () => {
+    const handler = createMediaHandler({ authorize: DENY });
+    const res = await handler(makeRequest("/media/foto.jpg"));
+    expect(res.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+
+  it("respuesta 404 de S3 incluye X-Content-Type-Options: nosniff", async () => {
+    mockDownload.mockRejectedValue(
+      new VaulterDownloadError("Not found", "key.jpg", 404),
+    );
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/key.jpg"));
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+
+  it("respuesta 500 incluye X-Content-Type-Options: nosniff", async () => {
+    mockDownload.mockRejectedValue(new Error("error inesperado"));
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/key.jpg"));
+    expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+});

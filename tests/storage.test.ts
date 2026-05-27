@@ -174,6 +174,43 @@ describe("upload", () => {
   });
 });
 
+// ─── upload – seguridad de folder ────────────────────────────────────────────
+
+describe("upload – seguridad de folder", () => {
+  it("lanza VaulterUploadError cuando folder contiene '..'", async () => {
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(upload(file, "../../evil")).rejects.toBeInstanceOf(VaulterUploadError);
+  });
+
+  it("lanza VaulterUploadError cuando folder tiene espacios", async () => {
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(upload(file, "folder with spaces")).rejects.toBeInstanceOf(VaulterUploadError);
+  });
+
+  it("lanza VaulterUploadError cuando folder empieza con /", async () => {
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(upload(file, "/abs/path")).rejects.toBeInstanceOf(VaulterUploadError);
+  });
+
+  it("lanza VaulterUploadError cuando folder está vacío", async () => {
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(upload(file, "")).rejects.toBeInstanceOf(VaulterUploadError);
+  });
+
+  it("no llama a S3 cuando folder es inválido", async () => {
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(upload(file, "../../evil")).rejects.toThrow();
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("acepta folder con guiones y guiones bajos", async () => {
+    mockSend.mockResolvedValue({});
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    const key = await upload(file, "my-folder_2/sub-dir");
+    expect(key.startsWith("my-folder_2/sub-dir/")).toBe(true);
+  });
+});
+
 // ─── uploadMany ───────────────────────────────────────────────────────────────
 
 describe("uploadMany", () => {

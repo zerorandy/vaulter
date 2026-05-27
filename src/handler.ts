@@ -31,9 +31,30 @@ export interface MediaHandlerOptions {
    */
   authorize: (request: Request) => Promise<AuthorizeResult>;
 
+  /**
+   * Callback invocado cuando el handler captura un error interno (descarga
+   * fallida, error de S3, etc.). Úsalo para registrar el error con tu propio
+   * logger. El cliente siempre recibe una respuesta genérica (500 o 404);
+   * este callback es el único punto donde puedes acceder al error original.
+   *
+   * El error es una instancia de `VaulterDownloadError` cuando viene de S3,
+   * con las propiedades `key`, `status` y `cause` (el error original del SDK).
+   *
+   * @example
+   * onError: (err, req) => {
+   *   logger.error({ err, url: req.url }, "vaulter media error")
+   * }
+   */
+  onError?: (err: unknown, request: Request) => void;
+
   /** Config explícito. Si se omite, usa el singleton de `init()`. */
   config?: VaulterConfig;
 }
+
+const SECURITY_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+};
 
 /**
  * Crea un handler HTTP que actúa como proxy privado para los archivos del
@@ -47,13 +68,14 @@ export interface MediaHandlerOptions {
  * Devuelve una función `(request: Request) => Promise<Response>` compatible
  * con SvelteKit, Next.js App Router, Astro, Hono, Bun y Cloudflare Workers.
  *
+ * Usa `onError` para observar errores internos sin exponerlos al cliente:
+ *
  * @example
- * // SvelteKit: src/routes/media/[...path]/+server.ts
  * import { createMediaHandler } from 'vaulter/handler'
  *
  * const handler = createMediaHandler({
- *   authorize: async ({ request, locals }) =>
- *     ({ ok: !!locals.user }),
+ *   authorize: async (req) => ({ ok: !!getSession(req) }),
+ *   onError: (err, req) => logger.error({ err, url: req.url }, "media error"),
  * })
  * export const GET = handler
  */
@@ -65,7 +87,10 @@ export function createMediaHandler(
 
     const auth = await opts.authorize(request);
     if (!auth.ok) {
-      return new Response("Unauthorized", { status: auth.status ?? 401 });
+      return new Response("Unauthorized", {
+        status: auth.status ?? 401,
+        headers: SECURITY_HEADERS,
+      });
     }
 
     // Extraer la key: todo lo que va después de publicPath + "/"
@@ -78,7 +103,10 @@ export function createMediaHandler(
       : pathname.slice(1);
 
     if (!key) {
-      return new Response("Not Found", { status: 404 });
+      return new Response("Not Found", { status: 404, headers: SECURITY_HEADERS });
+    }
+    if (key.includes("..") || key.startsWith("/")) {
+      return new Response("Bad Request", { status: 400, headers: SECURITY_HEADERS });
     }
 
     const range = request.headers.get("Range") ?? undefined;
@@ -93,6 +121,7 @@ export function createMediaHandler(
       const headers: Record<string, string> = {
         "Content-Type": obj.ContentType ?? "application/octet-stream",
         "Cache-Control": "private, max-age=3600",
+        ...SECURITY_HEADERS,
       };
 
       if (obj.ContentLength) {
@@ -110,10 +139,11 @@ export function createMediaHandler(
         headers,
       });
     } catch (err) {
+      try { opts.onError?.(err, request); } catch { /* el caller es responsable de que su callback no lance */ }
       if (err instanceof VaulterDownloadError && err.status === 404) {
-        return new Response("Not Found", { status: 404 });
+        return new Response("Not Found", { status: 404, headers: SECURITY_HEADERS });
       }
-      return new Response("Internal Server Error", { status: 500 });
+      return new Response("Internal Server Error", { status: 500, headers: SECURITY_HEADERS });
     }
   };
 }
