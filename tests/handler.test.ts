@@ -298,6 +298,29 @@ describe("onError", () => {
   });
 });
 
+// ─── validación de extensión ──────────────────────────────────────────────────
+
+describe("validación de extensión", () => {
+  it("devuelve 400 cuando la key no tiene extensión de archivo (segmento simple)", async () => {
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/club-logos"));
+    expect(res.status).toBe(400);
+  });
+
+  it("devuelve 400 cuando la key no tiene extensión de archivo (path anidado)", async () => {
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/avatars/userId"));
+    expect(res.status).toBe(400);
+  });
+
+  it("no bloquea una key con extensión válida", async () => {
+    mockDownload.mockResolvedValue({ Body: new ReadableStream(), ContentType: "image/jpeg" });
+    const handler = createMediaHandler({ authorize: ALLOW });
+    const res = await handler(makeRequest("/media/avatars/user/foto.jpg"));
+    expect(res.status).toBe(200);
+  });
+});
+
 // ─── headers de seguridad ─────────────────────────────────────────────────────
 
 describe("headers de seguridad", () => {

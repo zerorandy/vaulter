@@ -108,6 +108,9 @@ export function createMediaHandler(
     if (key.includes("..") || key.startsWith("/")) {
       return new Response("Bad Request", { status: 400, headers: SECURITY_HEADERS });
     }
+    if (!/\.\w+$/.test(key)) {
+      return new Response("Bad Request", { status: 400, headers: SECURITY_HEADERS });
+    }
 
     const range = request.headers.get("Range") ?? undefined;
 
