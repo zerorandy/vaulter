@@ -59,6 +59,39 @@ describe("authorize", () => {
     const res = await handler(makeRequest("/media/file.jpg"));
     expect(res.status).toBe(401);
   });
+
+  it("authorize recibe la key extraída como segundo argumento", async () => {
+    mockDownload.mockResolvedValue({
+      Body: new ReadableStream(),
+      ContentType: "image/jpeg",
+    });
+    const authorize = vi.fn(async () => ({ ok: true }));
+    const handler = createMediaHandler({ authorize });
+    await handler(makeRequest("/media/bitacora/abc123/foto.jpg"));
+    expect(authorize).toHaveBeenCalledWith(
+      expect.any(Request),
+      "bitacora/abc123/foto.jpg",
+    );
+  });
+
+  it("authorize recibe la key vacía cuando la URL no tiene key (antes del 404)", async () => {
+    const authorize = vi.fn(async () => ({ ok: true }));
+    const handler = createMediaHandler({ authorize });
+    await handler(makeRequest("/media/"));
+    expect(authorize).toHaveBeenCalledWith(expect.any(Request), "");
+  });
+
+  it("la denegación de authorize tiene precedencia sobre el 404 de key vacía", async () => {
+    const handler = createMediaHandler({ authorize: DENY });
+    const res = await handler(makeRequest("/media/"));
+    expect(res.status).toBe(401);
+  });
+
+  it("la denegación de authorize tiene precedencia sobre el 400 de extensión inválida", async () => {
+    const handler = createMediaHandler({ authorize: DENY });
+    const res = await handler(makeRequest("/media/sin-extension"));
+    expect(res.status).toBe(401);
+  });
 });
 
 // ─── extracción de key ────────────────────────────────────────────────────────
@@ -94,6 +127,19 @@ describe("extracción de key", () => {
 
     const [calledKey] = mockDownload.mock.calls[0] as [string];
     expect(calledKey).toBe("docs/report.pdf");
+  });
+
+  it("authorize recibe la key correcta con publicPath personalizado", async () => {
+    _resetConfig();
+    init({ ...BASE, publicPath: "/files" });
+    mockDownload.mockResolvedValue({
+      Body: new ReadableStream(),
+      ContentType: "application/pdf",
+    });
+    const authorize = vi.fn(async () => ({ ok: true }));
+    const handler = createMediaHandler({ authorize });
+    await handler(makeRequest("/files/docs/report.pdf"));
+    expect(authorize).toHaveBeenCalledWith(expect.any(Request), "docs/report.pdf");
   });
 });
 

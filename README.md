@@ -76,7 +76,7 @@ const url = toMediaUrl(key)
 import { createMediaHandler } from '@zerorandy/vaulter/handler'
 
 export const GET = createMediaHandler({
-  authorize: async (request) => {
+  authorize: async (request, key) => {
     const session = await getSession(request)
     return { ok: !!session, status: session ? 200 : 401 }
   },
@@ -84,6 +84,17 @@ export const GET = createMediaHandler({
 ```
 
 The handler returns a Web-standard `(Request) => Promise<Response>` function — the same code works in Next.js App Router, Astro, Hono, Bun, and Cloudflare Workers.
+
+`authorize` also receives the object `key` (already extracted from the URL, not yet format-validated), so you can enforce per-resource access instead of just "is there a session":
+
+```ts
+authorize: async (request, key) => {
+  const session = await getSession(request)
+  if (!session) return { ok: false, status: 401 }
+  const ownsResource = key.startsWith(`avatars/${session.userId}/`)
+  return { ok: ownsResource, status: ownsResource ? 200 : 403 }
+}
+```
 
 ---
 

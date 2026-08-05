@@ -23,6 +23,8 @@ import { createMediaHandler } from "vaulter/handler";
 // })
 
 const handler = createMediaHandler({
+  // authorize también recibe `key` (la key ya extraída de la URL) para
+  // hacer chequeos de autorización por-recurso — ver el README.
   authorize: async (request) => {
     // Con next-auth:
     // const session = await getServerSession()
