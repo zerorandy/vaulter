@@ -25,6 +25,18 @@ export class VaulterConfigError extends VaulterError {
 }
 
 /**
+ * Se lanza cuando se usa mal la API de `vaulter/queue` — por ejemplo, al
+ * pasar a `createCleanupRunner` una queue que no fue creada por
+ * `createCleanupQueue`.
+ */
+export class VaulterQueueError extends VaulterError {
+  constructor(message: string) {
+    super(message);
+    this.name = "VaulterQueueError";
+  }
+}
+
+/**
  * Se lanza cuando una operación de subida falla en el lado de S3.
  * El error original de AWS SDK queda accesible vía `cause`.
  */

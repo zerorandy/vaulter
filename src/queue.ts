@@ -1,5 +1,6 @@
 import { remove } from "./storage.js";
 import type { VaulterConfig } from "./config.js";
+import { VaulterQueueError } from "./errors.js";
 
 /* ------------------------------------------------------------------ */
 /* Tipos públicos                                                        */
@@ -135,7 +136,7 @@ export function createCleanupRunner(
   const state = internals.get(queue);
 
   if (!state) {
-    throw new Error(
+    throw new VaulterQueueError(
       "Vaulter: the queue passed to createCleanupRunner was not created by createCleanupQueue.",
     );
   }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { init, _resetConfig } from "../src/config.js";
 import type { QueueAdapter, QueueItem } from "../src/queue.js";
+import { VaulterQueueError } from "../src/errors.js";
 
 // Mock selectivo: solo remove se reemplaza
 const mockRemove = vi.fn();
@@ -85,7 +86,7 @@ describe("createCleanupQueue", () => {
 describe("createCleanupRunner — guard", () => {
   it("lanza si la queue no fue creada por createCleanupQueue", () => {
     const fakeQueue = { enqueue: async () => {} };
-    expect(() => createCleanupRunner(fakeQueue)).toThrow();
+    expect(() => createCleanupRunner(fakeQueue)).toThrow(VaulterQueueError);
   });
 });
 

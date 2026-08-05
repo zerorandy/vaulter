@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   VaulterError,
   VaulterConfigError,
+  VaulterQueueError,
   VaulterUploadError,
   VaulterDeleteError,
   VaulterDownloadError,
@@ -28,6 +29,16 @@ describe("VaulterConfigError", () => {
 
   it("name es VaulterConfigError", () => {
     expect(new VaulterConfigError("msg").name).toBe("VaulterConfigError");
+  });
+});
+
+describe("VaulterQueueError", () => {
+  it("es instancia de VaulterError", () => {
+    expect(new VaulterQueueError("msg")).toBeInstanceOf(VaulterError);
+  });
+
+  it("name es VaulterQueueError", () => {
+    expect(new VaulterQueueError("msg").name).toBe("VaulterQueueError");
   });
 });
 
