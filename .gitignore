@@ -20,6 +20,9 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Claude Code agentic working notes — local only, not part of the public repo
+CLAUDE.md
+
 # Editors
 .vscode/
 .idea/

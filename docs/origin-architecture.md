@@ -1,6 +1,6 @@
 # Arquitectura de Storage con Backblaze B2
 
-Documenta el sistema de almacenamiento de archivos (fotos, videos, audio, documentos) implementado en conquify-social usando Backblaze B2. El diseño es agnóstico del framework: los mismos principios y la misma librería central (`storage.ts`) aplican a Express, Fastify, Next.js, Hono, o cualquier servidor Node.js.
+Documenta el sistema de almacenamiento de archivos (fotos, videos, audio, documentos) implementado originalmente en una aplicación de producción (SvelteKit + Backblaze B2), del cual se extrajo y generalizó Vaulter. El diseño es agnóstico del framework: los mismos principios y la misma librería central (`storage.ts`) aplican a Express, Fastify, Next.js, Hono, o cualquier servidor Node.js.
 
 ---
 
@@ -21,7 +21,7 @@ La base de datos **nunca guarda URLs completas de B2**. Guarda la **key** (path 
 
 ```
 Correcto:   "bitacora/abc123/1748123456789-uuid.jpg"
-Incorrecto: "https://s3.us-east-005.backblazeb2.com/conquify/bitacora/abc123/1748123456789-uuid.jpg"
+Incorrecto: "https://s3.us-east-005.backblazeb2.com/mi-bucket/bitacora/abc123/1748123456789-uuid.jpg"
 ```
 
 Las ventajas:
@@ -62,7 +62,7 @@ Esto desacopla la UI del mecanismo de storage concreto.
 # .env
 B2_KEY_ID="005..."             # Application Key ID de Backblaze B2
 B2_APPLICATION_KEY="K005..."   # Application Key secret de Backblaze B2
-B2_BUCKET_NAME="conquify-test" # Nombre del bucket (Private)
+B2_BUCKET_NAME="mi-bucket-test" # Nombre del bucket (Private)
 B2_ENDPOINT="s3.us-east-005.backblazeb2.com"  # Endpoint S3 de tu región (con o sin https://)
 
 # Para el cron job de limpieza
@@ -171,7 +171,7 @@ export function toMediaUrl(key: string | null | undefined): string | null {
 
 ### Por qué `forcePathStyle: true`
 
-AWS S3 usa virtual-hosted style por defecto: `https://{bucket}.s3.amazonaws.com/{key}`. Backblaze B2 no soporta ese formato — requiere path-style: `https://{endpoint}/{bucket}/{key}`. Sin `forcePathStyle: true`, el SDK intenta conectar a `conquify-test.s3.us-east-005.backblazeb2.com` que no existe.
+AWS S3 usa virtual-hosted style por defecto: `https://{bucket}.s3.amazonaws.com/{key}`. Backblaze B2 no soporta ese formato — requiere path-style: `https://{endpoint}/{bucket}/{key}`. Sin `forcePathStyle: true`, el SDK intenta conectar a `mi-bucket-test.s3.us-east-005.backblazeb2.com` que no existe.
 
 ### Por qué `region: 'auto'`
 

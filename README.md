@@ -1,5 +1,9 @@
 # @zerorandy/vaulter
 
+[![npm version](https://img.shields.io/npm/v/@zerorandy/vaulter.svg)](https://www.npmjs.com/package/@zerorandy/vaulter)
+[![CI](https://github.com/zerorandy/vaulter/actions/workflows/ci.yml/badge.svg)](https://github.com/zerorandy/vaulter/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 Server-side file storage library for S3-compatible providers with a private-bucket + proxy pattern. Framework-agnostic, ESM-only, TypeScript-first.
 
 ## What it does
@@ -16,13 +20,8 @@ Vaulter wraps any S3-compatible storage (Backblaze B2, Cloudflare R2, AWS S3, Mi
 ## Installation
 
 ```bash
-# From npm (once published)
 npm install @zerorandy/vaulter
 pnpm add @zerorandy/vaulter
-
-# From GitHub (current)
-pnpm add github:zerorandy/vaulter#v0.1.0
-npm install github:zerorandy/vaulter#v0.1.0
 ```
 
 Requires Node.js 18+ (or any modern runtime with Web Streams and `crypto.randomUUID`).
@@ -279,6 +278,11 @@ init({
 The defaults (`region: 'auto'`, `forcePathStyle: true`) work out of the box for B2, R2, MinIO, and Wasabi.
 
 ---
+
+## Learn more
+
+- [`examples/`](./examples) — reference `QueueAdapter` implementation for Prisma, plus handler wiring for SvelteKit, Next.js, Astro, and Express.
+- [`docs/origin-architecture.md`](./docs/origin-architecture.md) — the original private-bucket + proxy design this library was extracted from, and the reasoning behind it.
 
 ## License
 
