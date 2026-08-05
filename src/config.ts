@@ -155,8 +155,8 @@ export function resolveConfig(override?: VaulterConfig): ResolvedConfig {
 
   if (!globalConfig) {
     throw new VaulterConfigError(
-      "Vaulter no está inicializado. Llama a init(config) una vez al arrancar la app, " +
-        "o pasa un config explícito a la función que estás llamando.",
+      "Vaulter is not initialized. Call init(config) once when starting the app, " +
+        "or pass an explicit config to the function you're calling.",
     );
   }
 
@@ -197,17 +197,17 @@ function applyDefaults(config: VaulterConfig): ResolvedConfig {
 
 function validateConfig(config: VaulterConfig): void {
   if (!config.endpoint) {
-    throw new VaulterConfigError("config.endpoint es requerido");
+    throw new VaulterConfigError("config.endpoint is required");
   }
   if (!config.bucket) {
-    throw new VaulterConfigError("config.bucket es requerido");
+    throw new VaulterConfigError("config.bucket is required");
   }
   if (!config.credentials?.accessKeyId) {
-    throw new VaulterConfigError("config.credentials.accessKeyId es requerido");
+    throw new VaulterConfigError("config.credentials.accessKeyId is required");
   }
   if (!config.credentials?.secretAccessKey) {
     throw new VaulterConfigError(
-      "config.credentials.secretAccessKey es requerido",
+      "config.credentials.secretAccessKey is required",
     );
   }
 }
