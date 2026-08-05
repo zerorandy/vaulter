@@ -7,7 +7,7 @@
   "author": "zerorandy <renereyperez@gmail.com> (https://github.com/zerorandy)",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zerorandy/vaulter"
+    "url": "git+https://github.com/zerorandy/vaulter.git"
   },
   "homepage": "https://github.com/zerorandy/vaulter#readme",
   "bugs": {
