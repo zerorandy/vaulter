@@ -269,6 +269,83 @@ describe("upload – seguridad de extensión", () => {
   });
 });
 
+// ─── upload – seguridad de tipo MIME ─────────────────────────────────────────
+
+describe("upload – seguridad de tipo MIME", () => {
+  it("no rechaza nada cuando allowedTypes no está configurado", async () => {
+    mockSend.mockResolvedValue({});
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    const key = await upload(file, "docs");
+    expect(key).toBeDefined();
+  });
+
+  it("lanza VaulterUploadError cuando file.type no está en allowedTypes (config global)", async () => {
+    _resetConfig();
+    init({ ...BASE, allowedTypes: ["image/png"] });
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(upload(file, "docs")).rejects.toBeInstanceOf(VaulterUploadError);
+  });
+
+  it("lanza VaulterUploadError cuando file.type es cadena vacía", async () => {
+    _resetConfig();
+    init({ ...BASE, allowedTypes: ["image/png"] });
+    const file = new File(["data"], "foto", { type: "" });
+    await expect(upload(file, "docs")).rejects.toBeInstanceOf(VaulterUploadError);
+  });
+
+  it("no llama a S3 cuando el tipo MIME es inválido", async () => {
+    _resetConfig();
+    init({ ...BASE, allowedTypes: ["image/png"] });
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(upload(file, "docs")).rejects.toThrow();
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it("acepta el tipo MIME cuando coincide exactamente con allowedTypes", async () => {
+    mockSend.mockResolvedValue({});
+    _resetConfig();
+    init({ ...BASE, allowedTypes: ["image/png", "image/jpeg"] });
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    const key = await upload(file, "docs");
+    expect(key).toBeDefined();
+  });
+
+  it("acepta el tipo MIME cuando coincide con un wildcard", async () => {
+    mockSend.mockResolvedValue({});
+    _resetConfig();
+    init({ ...BASE, allowedTypes: ["image/*"] });
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    const key = await upload(file, "docs");
+    expect(key).toBeDefined();
+  });
+
+  it("rechaza un subtipo que no coincide con el wildcard", async () => {
+    _resetConfig();
+    init({ ...BASE, allowedTypes: ["image/*"] });
+    const file = new File(["data"], "doc.pdf", { type: "application/pdf" });
+    await expect(upload(file, "docs")).rejects.toBeInstanceOf(VaulterUploadError);
+  });
+
+  it("opts.allowedTypes por llamada reemplaza (no combina con) el allowedTypes global", async () => {
+    mockSend.mockResolvedValue({});
+    _resetConfig();
+    init({ ...BASE, allowedTypes: ["image/png"] });
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(upload(file, "docs")).rejects.toBeInstanceOf(VaulterUploadError);
+    const key = await upload(file, "docs", { allowedTypes: ["image/jpeg"] });
+    expect(key).toBeDefined();
+  });
+
+  it("opts.allowedTypes por llamada puede ser más restrictivo que el global", async () => {
+    _resetConfig();
+    init({ ...BASE, allowedTypes: ["image/jpeg", "image/png"] });
+    const file = new File(["data"], "foto.jpg", { type: "image/jpeg" });
+    await expect(
+      upload(file, "docs", { allowedTypes: ["image/png"] }),
+    ).rejects.toBeInstanceOf(VaulterUploadError);
+  });
+});
+
 // ─── uploadMany ───────────────────────────────────────────────────────────────
 
 describe("uploadMany", () => {

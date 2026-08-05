@@ -79,6 +79,24 @@ export interface VaulterConfig {
    * urlBuilder: (base, key) => `${base}/${key}?token=${sign(key)}`
    */
   urlBuilder?: UrlBuilder;
+
+  /**
+   * Lista de MIME types permitidos para `upload()`/`uploadMany()`.
+   * Si no se define, no hay restricción (comportamiento actual: `file.type`
+   * se guarda tal cual, sin validar).
+   *
+   * Vaulter no valida el tipo de archivo por defecto — es responsabilidad
+   * del usuario, ya que `file.type` es dato del cliente y se sirve de vuelta
+   * sin modificar desde `download()`/el proxy. Definir `allowedTypes` es la
+   * forma de optar por validación en escritura.
+   *
+   * Soporta wildcard de subtipo: `"image/*"` matchea cualquier `image/...`.
+   * El resto de entradas deben matchear `file.type` exactamente.
+   *
+   * @example
+   * init({ ..., allowedTypes: ["image/png", "image/jpeg", "image/*"] })
+   */
+  allowedTypes?: string[];
 }
 
 /**
@@ -97,6 +115,7 @@ export interface ResolvedConfig {
   publicPath: string;
   proxyUrl: string | undefined;
   urlBuilder: UrlBuilder | undefined;
+  allowedTypes: string[] | undefined;
 }
 
 /**
@@ -192,6 +211,7 @@ function applyDefaults(config: VaulterConfig): ResolvedConfig {
       ? normalizeProxyUrl(config.proxyUrl)
       : undefined,
     urlBuilder: config.urlBuilder,
+    allowedTypes: config.allowedTypes,
   };
 }
 

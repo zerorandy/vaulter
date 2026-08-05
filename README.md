@@ -137,6 +137,38 @@ init({
 
 ---
 
+## MIME-type validation
+
+By default Vaulter does **not** validate `file.type` — the browser-supplied
+MIME type is stored as-is as the object's `ContentType` and returned
+verbatim by `download()` and the proxy handler. If your app ever renders
+that content back to users, an attacker-controlled `file.type` can be a
+stored-XSS vector unless you validate it yourself.
+
+Vaulter doesn't enforce this by default (file validation is intentionally
+out of scope — see the project's design principles), but you can opt in
+with `allowedTypes`, globally or per call:
+
+```ts
+// Global default — applies to every upload()/uploadMany() call
+init({
+  ...,
+  allowedTypes: ['image/png', 'image/jpeg', 'image/*'],
+})
+
+// Per-call override — replaces (not merges with) the global list
+await upload(file, 'avatars', { allowedTypes: ['image/png'] })
+```
+
+Entries ending in `/*` match any subtype (`'image/*'` matches
+`'image/png'`, `'image/jpeg'`, etc.); other entries must match `file.type`
+exactly. When `allowedTypes` is set and `file.type` doesn't match
+(including an empty `file.type`), `upload()` throws `VaulterUploadError`
+before any S3 call. Leaving `allowedTypes` unset keeps the current
+permissive behavior.
+
+---
+
 ## Resilient file deletion (cleanup queue)
 
 S3 deletes can fail (network timeout, rate limit). Vaulter includes an adapter-based cleanup queue so no file is ever permanently orphaned.
@@ -204,7 +236,7 @@ All errors extend `VaulterError` — a single `instanceof VaulterError` catches 
 |-------|-----------------|
 | `VaulterError` | Base class |
 | `VaulterConfigError` | `init()` not called and no per-call config |
-| `VaulterUploadError` | S3 `PutObject` failed |
+| `VaulterUploadError` | Invalid folder/type, or S3 `PutObject` failed |
 | `VaulterDeleteError` | S3 `DeleteObject` failed |
 | `VaulterDownloadError` | S3 `GetObject` failed (has `.status` and `.key`) |
 
@@ -226,6 +258,7 @@ init({
   region: 'auto',          // default 'auto' — B2 ignores it; AWS S3 needs it
   forcePathStyle: true,    // default true  — required for B2, MinIO, R2
   publicPath: '/media',    // default '/media' — mount path for createMediaHandler
+  allowedTypes: ['image/png', 'image/jpeg'],  // default undefined — no restriction; see "MIME-type validation"
 
   // External proxy (optional)
   proxyUrl: 'https://media.my-worker.workers.dev',  // overrides publicPath in toMediaUrl

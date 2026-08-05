@@ -51,6 +51,24 @@ function assertValidFolder(folder: string): void {
   }
 }
 
+function assertValidType(
+  fileType: string,
+  allowedTypes: string[],
+  folder: string,
+): void {
+  const ok = allowedTypes.some((pattern) =>
+    pattern.endsWith("/*")
+      ? fileType.startsWith(pattern.slice(0, -1))
+      : fileType === pattern,
+  );
+  if (!ok) {
+    throw new VaulterUploadError(
+      `Invalid file type "${fileType}": allowed types are ${allowedTypes.join(", ")}`,
+      folder,
+    );
+  }
+}
+
 const VALID_EXT_RE = /^[a-zA-Z0-9]{1,10}$/;
 
 // Extensiones que no cumplen el patrón (contienen "/", "..", "?", espacios, etc.)
@@ -70,17 +88,32 @@ function sanitizeExt(name: string): string {
  * Sube un archivo al bucket y devuelve su key.
  * La key sigue el patrón `{folder}/{timestamp}-{uuid}.{ext}`.
  *
+ * Si `allowedTypes` está definido (en `opts` o en el config global), rechaza
+ * con `VaulterUploadError` antes de tocar S3 cuando `file.type` no matchea
+ * ninguna entrada. `opts.allowedTypes` reemplaza (no combina con) el valor
+ * del config global para esta llamada.
+ *
  * @example
  * const key = await upload(file, `avatars/${userId}`)
  * // → "avatars/abc123/1748123456789-550e8400.jpg"
+ *
+ * @example
+ * // Solo para esta llamada, solo imágenes
+ * const key = await upload(file, `avatars/${userId}`, {
+ *   allowedTypes: ["image/png", "image/jpeg"],
+ * })
  */
 export async function upload(
   file: File,
   folder: string,
-  opts?: { config?: VaulterConfig },
+  opts?: { config?: VaulterConfig; allowedTypes?: string[] },
 ): Promise<string> {
   assertValidFolder(folder);
   const config = resolveConfig(opts?.config);
+  const allowedTypes = opts?.allowedTypes ?? config.allowedTypes;
+  if (allowedTypes) {
+    assertValidType(file.type, allowedTypes, folder);
+  }
   const s3 = createS3Client(config);
 
   const timestamp = Date.now();
@@ -122,7 +155,7 @@ export async function upload(
 export async function uploadMany(
   files: File[],
   folder: string,
-  opts?: { config?: VaulterConfig },
+  opts?: { config?: VaulterConfig; allowedTypes?: string[] },
 ): Promise<string[]> {
   return Promise.all(files.map((f) => upload(f, folder, opts)));
 }

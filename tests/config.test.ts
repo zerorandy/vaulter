@@ -186,4 +186,14 @@ describe("defaults", () => {
     init(BASE);
     expect(resolveConfig().urlBuilder).toBeUndefined();
   });
+
+  it("allowedTypes es undefined cuando no se define", () => {
+    init(BASE);
+    expect(resolveConfig().allowedTypes).toBeUndefined();
+  });
+
+  it("allowedTypes se pasa tal cual cuando se define", () => {
+    init({ ...BASE, allowedTypes: ["image/png", "image/*"] });
+    expect(resolveConfig().allowedTypes).toEqual(["image/png", "image/*"]);
+  });
 });
