@@ -51,6 +51,17 @@ function assertValidFolder(folder: string): void {
   }
 }
 
+const VALID_EXT_RE = /^[a-zA-Z0-9]{1,10}$/;
+
+// Extensiones que no cumplen el patrón (contienen "/", "..", "?", espacios, etc.)
+// caen a "bin": el nombre del archivo es dato del usuario y no debe poder
+// inyectar estructura en la key que arma Vaulter.
+function sanitizeExt(name: string): string {
+  const dotIndex = name.lastIndexOf(".");
+  const candidate = dotIndex >= 0 ? name.slice(dotIndex + 1) : "";
+  return VALID_EXT_RE.test(candidate) ? candidate : "bin";
+}
+
 /* ------------------------------------------------------------------ */
 /* upload                                                               */
 /* ------------------------------------------------------------------ */
@@ -73,8 +84,7 @@ export async function upload(
   const s3 = createS3Client(config);
 
   const timestamp = Date.now();
-  const dotIndex = file.name.lastIndexOf(".");
-  const ext = dotIndex >= 0 ? file.name.slice(dotIndex + 1) : "bin";
+  const ext = sanitizeExt(file.name);
   const key = `${folder}/${timestamp}-${crypto.randomUUID()}.${ext}`;
 
   const buffer = await file.arrayBuffer();

@@ -211,6 +211,64 @@ describe("upload – seguridad de folder", () => {
   });
 });
 
+// ─── upload – seguridad de extensión ─────────────────────────────────────────
+
+describe("upload – seguridad de extensión", () => {
+  it("usa bin cuando la extensión contiene '..'", async () => {
+    mockSend.mockResolvedValue({});
+    const file = new File(["data"], "photo.jpg/../evil", { type: "image/jpeg" });
+    const key = await upload(file, "folder");
+    expect(key.endsWith(".bin")).toBe(true);
+    expect(key.includes("..")).toBe(false);
+  });
+
+  it("usa bin cuando la extensión contiene '/'", async () => {
+    mockSend.mockResolvedValue({});
+    const file = new File(["data"], "photo.jpg/evil", { type: "image/jpeg" });
+    const key = await upload(file, "folder");
+    expect(key.endsWith(".bin")).toBe(true);
+    expect(key.includes("/evil")).toBe(false);
+  });
+
+  it("usa bin cuando la extensión contiene '?'", async () => {
+    mockSend.mockResolvedValue({});
+    const file = new File(["data"], "photo.jpg?x=1", { type: "image/jpeg" });
+    const key = await upload(file, "folder");
+    expect(key.endsWith(".bin")).toBe(true);
+    expect(key.includes("?")).toBe(false);
+  });
+
+  it("usa bin cuando la extensión contiene '#'", async () => {
+    mockSend.mockResolvedValue({});
+    const file = new File(["data"], "photo.jpg#frag", { type: "image/jpeg" });
+    const key = await upload(file, "folder");
+    expect(key.endsWith(".bin")).toBe(true);
+    expect(key.includes("#")).toBe(false);
+  });
+
+  it("usa bin cuando la extensión excede el largo máximo", async () => {
+    mockSend.mockResolvedValue({});
+    const longExt = "a".repeat(20);
+    const file = new File(["data"], `photo.${longExt}`, { type: "image/jpeg" });
+    const key = await upload(file, "folder");
+    expect(key.endsWith(".bin")).toBe(true);
+  });
+
+  it("no afecta nombres con doble extensión (archive.tar.gz sigue usando gz)", async () => {
+    mockSend.mockResolvedValue({});
+    const file = new File(["data"], "archive.tar.gz", { type: "application/gzip" });
+    const key = await upload(file, "folder");
+    expect(key.endsWith(".gz")).toBe(true);
+  });
+
+  it("preserva extensiones alfanuméricas normales sin cambios", async () => {
+    mockSend.mockResolvedValue({});
+    const file = new File(["data"], "documento.PDF", { type: "application/pdf" });
+    const key = await upload(file, "folder");
+    expect(key.endsWith(".PDF")).toBe(true);
+  });
+});
+
 // ─── uploadMany ───────────────────────────────────────────────────────────────
 
 describe("uploadMany", () => {
