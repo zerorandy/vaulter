@@ -74,7 +74,7 @@ export interface VaulterConfig {
    * Útil para añadir tokens, prefijos de CDN u otras transformaciones.
    *
    * @example
-   * import { urlBuilders } from 'vaulter'
+   * import { urlBuilders } from '@zerorandy/vaulter'
    * // Extender el builder simple con un token
    * urlBuilder: (base, key) => `${base}/${key}?token=${sign(key)}`
    */
@@ -124,7 +124,7 @@ export interface ResolvedConfig {
  *
  * @example
  * ```ts
- * import { defineConfig } from 'vaulter';
+ * import { defineConfig } from '@zerorandy/vaulter';
  *
  * export default defineConfig({
  *   endpoint: process.env.B2_ENDPOINT!,

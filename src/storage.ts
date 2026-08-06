@@ -22,7 +22,7 @@ import {
  * para crear los tuyos en tu propio proyecto.
  *
  * @example
- * import { urlBuilders, type UrlBuilder } from 'vaulter'
+ * import { urlBuilders, type UrlBuilder } from '@zerorandy/vaulter'
  *
  * export const myBuilders = {
  *   ...urlBuilders,

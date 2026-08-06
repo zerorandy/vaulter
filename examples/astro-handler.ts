@@ -10,9 +10,9 @@
  * archivo — el tráfico va directo al Worker/CDN.
  */
 
-import { createMediaHandler } from "vaulter/handler";
+import { createMediaHandler } from "@zerorandy/vaulter/handler";
 // import type { APIRoute } from 'astro'
-// import { init } from 'vaulter'
+// import { init } from '@zerorandy/vaulter'
 //
 // Inicializa en src/lib/vaulter.ts (importado desde un middleware o un endpoint):
 // init({

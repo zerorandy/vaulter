@@ -8,9 +8,9 @@
  * archivo — el tráfico va directo al Worker/CDN.
  */
 
-import { createMediaHandler } from "vaulter/handler";
+import { createMediaHandler } from "@zerorandy/vaulter/handler";
 // import { getServerSession } from 'next-auth'   // o tu librería de auth
-// import { init } from 'vaulter'
+// import { init } from '@zerorandy/vaulter'
 //
 // Inicializa en lib/vaulter.ts (importado en tu root layout o en un Server Component):
 // init({

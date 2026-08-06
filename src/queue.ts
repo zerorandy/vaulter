@@ -74,7 +74,7 @@ const internals = new WeakMap<CleanupQueue, QueueInternal>();
  * cuando quiere marcar un archivo para borrado resiliente.
  *
  * @example
- * import { createCleanupQueue } from 'vaulter/queue'
+ * import { createCleanupQueue } from '@zerorandy/vaulter/queue'
  * import { prismaAdapter } from './prisma-adapter.js'
  *
  * export const cleanupQueue = createCleanupQueue({
@@ -122,7 +122,7 @@ export function createCleanupQueue(opts: {
  *   revisión manual (depende de la implementación del adaptador).
  *
  * @example
- * import { createCleanupRunner } from 'vaulter/queue'
+ * import { createCleanupRunner } from '@zerorandy/vaulter/queue'
  * import { cleanupQueue } from './queue.js'
  *
  * export const runCleanup = createCleanupRunner(cleanupQueue)

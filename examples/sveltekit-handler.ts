@@ -8,9 +8,9 @@
  * archivo — el tráfico va directo al Worker/CDN y nunca pasa por tu app.
  */
 
-import { createMediaHandler } from "vaulter/handler";
+import { createMediaHandler } from "@zerorandy/vaulter/handler";
 // import type { RequestHandler } from './$types'
-// import { init } from 'vaulter'
+// import { init } from '@zerorandy/vaulter'
 //
 // Inicializa una vez en hooks.server.ts o en tu primer load server-side:
 // init({

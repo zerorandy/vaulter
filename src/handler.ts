@@ -82,7 +82,7 @@ const SECURITY_HEADERS: Record<string, string> = {
  * Usa `onError` para observar errores internos sin exponerlos al cliente:
  *
  * @example
- * import { createMediaHandler } from 'vaulter/handler'
+ * import { createMediaHandler } from '@zerorandy/vaulter/handler'
  *
  * const handler = createMediaHandler({
  *   authorize: async (req, key) => ({ ok: !!getSession(req) }),

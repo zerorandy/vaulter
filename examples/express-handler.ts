@@ -4,9 +4,9 @@
  * Si usas un proxy externo (proxyUrl en tu config), no necesitas esta ruta.
  */
 
-import { createMediaHandler } from "vaulter/handler";
+import { createMediaHandler } from "@zerorandy/vaulter/handler";
 // import express from 'express'
-// import { init } from 'vaulter'
+// import { init } from '@zerorandy/vaulter'
 //
 // init({
 //   endpoint: process.env.B2_ENDPOINT!,

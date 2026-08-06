@@ -19,7 +19,7 @@
  * ```
  */
 
-import type { QueueAdapter, QueueItem } from "vaulter/queue";
+import type { QueueAdapter, QueueItem } from "@zerorandy/vaulter/queue";
 // import { PrismaClient } from '@prisma/client'
 // const prisma = new PrismaClient()
 
