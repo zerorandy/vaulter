@@ -24,7 +24,7 @@ npm install @zerorandy/vaulter
 pnpm add @zerorandy/vaulter
 ```
 
-Requires Node.js 18+ (or any modern runtime with Web Streams and `crypto.randomUUID`).
+Requires Node.js 22+ (or any modern runtime with Web Streams and `crypto.randomUUID`).
 
 ## Quick start
 

@@ -1,6 +1,6 @@
 {
   "name": "@zerorandy/vaulter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Server-side file storage library for S3-compatible providers (Backblaze B2, Cloudflare R2, MinIO, AWS S3) with private bucket + proxy pattern.",
   "type": "module",
   "license": "MIT",
@@ -60,7 +60,7 @@
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "packageManager": "pnpm@11.17.0",
   "dependencies": {
